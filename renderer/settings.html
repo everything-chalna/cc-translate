@@ -11,8 +11,8 @@
     <section class="shortcut"><div><h2>Translate selected text</h2><p>Hold Command. Press C twice.</p></div><div class="keys"><kbd>⌘</kbd><kbd>C</kbd><kbd>C</kbd></div></section>
     <div class="connection"><span id="codexStatus" role="status">Connecting…</span><button type="button" id="openaiLoginBtn" class="text-button">Sign in</button></div>
     <div id="accessibilityHint" class="permission" hidden><span>Accessibility access required.</span><button type="button" id="accessibilityBtn">Open Settings</button></div>
-    <section class="field"><label for="targetLanguage">Translate to</label><input id="targetLanguage" type="text" maxlength="60" placeholder="Language" autocomplete="off"></section>
     <section class="field"><label for="openaiModel">Model</label><select id="openaiModel"></select><p id="openaiModelHint" class="hint" role="status"></p></section>
+    <section class="field"><label for="targetLanguage">Translate to</label><input id="targetLanguage" type="text" maxlength="60" placeholder="Language" autocomplete="off"></section>
     <section class="field"><div class="label-row"><label for="translationPrompt">Translation style</label><button type="button" id="resetPrompt" class="text-button">Reset</button></div><textarea id="translationPrompt" rows="5" maxlength="20000" spellcheck="false" placeholder="Tone, terminology, and formatting"></textarea></section>
     <footer><span id="promptStatus" role="status"></span><button type="button" id="savePrompt" class="primary">Save</button></footer>
     <span id="status" role="status"></span>
