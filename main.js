@@ -15,7 +15,7 @@ const Store = require("electron-store");
 const { translateOpenAI, getCodexToken, loginOpenAI, listOpenAIModels } = require("./translate");
 const { DEFAULT_TRANSLATION_PROMPT, migrateTranslationStyle, normalizeTargetLanguage } = require("./translation-prompt");
 const doubleCopy = require("./double-copy");
-const { popupWidth, popupBounds } = require("./popup-layout");
+const { popupWidth, popupBounds, resizedPopupBounds } = require("./popup-layout");
 
 // ─── Single Instance Lock ───────────────────────────────────────────────────
 
@@ -116,8 +116,6 @@ async function onDoubleCopy(text, cursorPoint, error) {
 
 // ─── Popup Window ───────────────────────────────────────────────────────────
 
-let popupAnchor = null;
-let popupDisplay = null;
 function createPopupWindow() {
   const w = 360;
   const h = 150;
@@ -162,8 +160,6 @@ function showPopup(text, targetLangOverride, autoTranslate, cursorPoint) {
     createPopupWindow();
   }
 
-  popupAnchor = point;
-  popupDisplay = workArea;
   popupWindow.setBounds(popupBounds(point, popupWidth(text.length, workArea), 150, workArea));
 
   const sendRequest = () => {
@@ -354,9 +350,11 @@ ipcMain.handle("copy-to-clipboard", (_event, text) => {
 
 ipcMain.on("resize-popup", (event, height) => {
   if (!popupWindow || popupWindow.isDestroyed() || event.sender !== popupWindow.webContents) return;
-  if (!Number.isFinite(height) || !popupAnchor || !popupDisplay) return;
-  const width = popupWindow.getBounds().width;
-  popupWindow.setBounds(popupBounds(popupAnchor, width, height, popupDisplay));
+  if (!Number.isFinite(height)) return;
+  const current = popupWindow.getBounds();
+  const area = screen.getDisplayMatching(current).workArea;
+  const next = resizedPopupBounds(current, height, area);
+  if (Object.keys(next).some(key => next[key] !== current[key])) popupWindow.setBounds(next);
 });
 
 ipcMain.on("popup-busy", (_event, busy) => {

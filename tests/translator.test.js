@@ -226,3 +226,22 @@ test('style migration hides template syntax and preserves custom instructions', 
   assert.doesNotMatch(read('renderer/settings.html'), /Advanced|promptHighlight|promptVariable|\{targetLanguage\}/);
   assert.match(read('renderer/settings.html'), /Translation style/);
 });
+
+test('streamed popup resizing keeps its position at the bottom edge and after dragging', () => {
+  const { popupBounds, resizedPopupBounds } = require('../popup-layout');
+  const area = { x: 0, y: 0, width: 1440, height: 900 };
+  let bounds = popupBounds({ x: 800, y: 730 }, 440, 150, area);
+  const origin = { x: bounds.x, y: bounds.y };
+  for (const height of [300, 500, 180, 120, 600]) {
+    bounds = resizedPopupBounds(bounds, height, area);
+    assert.equal(bounds.x, origin.x);
+    assert.equal(bounds.y, origin.y);
+    assert.ok(bounds.y + bounds.height <= 888);
+  }
+  const dragged = { x: 150, y: 180, width: 440, height: 150 };
+  const grown = resizedPopupBounds(dragged, 500, area);
+  assert.deepEqual(grown, { ...dragged, height: 500 });
+  const secondScreen = { x: -1440, y: -200, width: 1440, height: 900 };
+  const moved = { x: -1200, y: -100, width: 440, height: 200 };
+  assert.deepEqual(resizedPopupBounds(moved, 400, secondScreen), { ...moved, height: 400 });
+});

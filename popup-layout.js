@@ -11,4 +11,15 @@ function popupBounds(point, width, requestedHeight, area) {
     y: Math.round(Math.max(area.y + 12, Math.min(point.y + 16, area.y + area.height - height - 12))),
   };
 }
-module.exports = { popupWidth, popupBounds };
+// Resize from the current window position, including after a manual drag.
+// Only clamp position when the window is outside the current screen's usable area.
+function resizedPopupBounds(current, requestedHeight, area) {
+  const width = Math.min(current.width, Math.max(100, area.width - 24));
+  const minHeight = Math.min(120, area.height - 24);
+  const x = Math.round(Math.max(area.x + 12, Math.min(current.x, area.x + area.width - width - 12)));
+  const y = Math.round(Math.max(area.y + 12, Math.min(current.y, area.y + area.height - minHeight - 12)));
+  const availableHeight = area.y + area.height - y - 12;
+  const height = Math.min(Math.max(minHeight, Math.ceil(requestedHeight)), 760, availableHeight);
+  return { x, y, width, height };
+}
+module.exports = { popupWidth, popupBounds, resizedPopupBounds };
