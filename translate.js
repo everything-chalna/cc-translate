@@ -1,5 +1,5 @@
 const https = require("https");
-const { buildTranslationPrompt } = require("./translation-prompt");
+const { buildTranslationPrompt, normalizeTargetLanguage } = require("./translation-prompt");
 const { detectLanguage } = require("./lang-detect");
 const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 const DEFAULT_OPENAI_MODEL = "gpt-5.6-luna";
@@ -442,9 +442,9 @@ async function loginOpenAI({ openExternal }) {
  * @param {string} [model] - Model ID on the ChatGPT backend
  */
 async function translateOpenAI(text, token, targetLang, signal, onChunk, model, customPrompt) {
-  targetLang = "ko";
+  targetLang = normalizeTargetLanguage(targetLang || "Korean");
   if (signal?.aborted) throw new Error("Translation cancelled");
-  const systemPrompt = buildTranslationPrompt(customPrompt);
+  const systemPrompt = buildTranslationPrompt(customPrompt, targetLang);
 
   let retried = false;
 

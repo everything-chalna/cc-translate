@@ -6,7 +6,7 @@ const errorMsg = document.getElementById("errorMsg");
 const copyBtn = document.getElementById("copyBtn");
 const translateBtn = document.getElementById("translateBtn");
 
-const modeBadge = document.getElementById("modeBadge");
+
 
 let currentSourceText = "";
 let requestId = 0; // guard against stale translation responses
@@ -32,8 +32,6 @@ window.addEventListener("resize", resizeToContent);
 window.api.onTranslationRequest((data) => {
   currentSourceText = data.text;
 
-  modeBadge.textContent = "ChatGPT";
-  modeBadge.className = "mode-badge cloud";
 
   sourcePreview.textContent =
     currentSourceText.length > 150
@@ -89,8 +87,7 @@ async function startTranslation() {
 
   try {
     const result = await window.api.translate(
-      currentSourceText,
-      "ko"
+      currentSourceText
     );
 
     // Only release busy if this is still the current request

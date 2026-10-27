@@ -13,7 +13,7 @@ const {
 const path = require("path");
 const Store = require("electron-store");
 const { translateOpenAI, getCodexToken, loginOpenAI, listOpenAIModels } = require("./translate");
-const { DEFAULT_TRANSLATION_PROMPT } = require("./translation-prompt");
+const { DEFAULT_TRANSLATION_PROMPT, LEGACY_TRANSLATION_PROMPT, normalizeTargetLanguage } = require("./translation-prompt");
 const doubleCopy = require("./double-copy");
 const { popupWidth, popupBounds } = require("./popup-layout");
 
@@ -36,8 +36,14 @@ const store = new Store({
   defaults: {
     openaiModel: "gpt-5.6-luna",
     translationPrompt: DEFAULT_TRANSLATION_PROMPT,
+    targetLanguage: "Korean",
   },
 });
+
+// Migrate only the old default; preserve custom prompts.
+if (store.get("translationPrompt") === LEGACY_TRANSLATION_PROMPT) {
+  store.set("translationPrompt", DEFAULT_TRANSLATION_PROMPT);
+}
 
 // ─── App State ──────────────────────────────────────────────────────────────
 
@@ -161,7 +167,7 @@ function showPopup(text, targetLangOverride, autoTranslate, cursorPoint) {
   popupWindow.setBounds(popupBounds(point, popupWidth(text.length, workArea), 150, workArea));
 
   const sendRequest = () => {
-    const defaultTarget = "ko";
+    const defaultTarget = store.get("targetLanguage");
     popupWindow.webContents.send("translation-request", {
       text,
       targetLang: defaultTarget,
@@ -215,7 +221,7 @@ function openSettings() {
 // ─── IPC: Translation (with cancellation + streaming) ───────────────────────
 
 ipcMain.handle("translate", async (_event, text, targetLang) => {
-  targetLang = "ko";
+  targetLang = store.get("targetLanguage");
 
   // Cancel any in-flight cloud translation
   if (currentTranslationController) {
@@ -242,7 +248,7 @@ ipcMain.handle("translate", async (_event, text, targetLang) => {
       currentTranslationController = null;
       return { error: 'Sign in to ChatGPT in Settings.' };
     }
-    result = await translateOpenAI(text, codexToken, "ko", controller.signal, sendChunk, store.get("openaiModel"), store.get("translationPrompt"));
+    result = await translateOpenAI(text, codexToken, targetLang, controller.signal, sendChunk, store.get("openaiModel"), store.get("translationPrompt"));
     currentTranslationController = null;
     return result;
   } catch (err) {
@@ -259,6 +265,7 @@ ipcMain.handle("translate", async (_event, text, targetLang) => {
 ipcMain.handle("get-settings", () => ({
   translationPrompt: store.get("translationPrompt"),
   defaultTranslationPrompt: DEFAULT_TRANSLATION_PROMPT,
+  targetLanguage: store.get("targetLanguage"),
   openaiModel: store.get("openaiModel"),
   accessibility: { trusted: doubleCopy.isAccessibilityTrusted(), mode: doubleCopy.getMode() },
 }));
@@ -290,6 +297,10 @@ ipcMain.on("close-settings", (event) => {
 });
 
 ipcMain.handle("save-settings", (_event, settings) => {
+  if (settings.targetLanguage !== undefined) {
+    try { settings.targetLanguage = normalizeTargetLanguage(settings.targetLanguage); }
+    catch (err) { return { error: err.message }; }
+  }
   if (settings.openaiModel !== undefined) store.set("openaiModel", settings.openaiModel);
   if (settings.translationPrompt !== undefined) {
     if (typeof settings.translationPrompt !== "string" || settings.translationPrompt.length > 20000) {
@@ -297,6 +308,7 @@ ipcMain.handle("save-settings", (_event, settings) => {
     }
     store.set("translationPrompt", settings.translationPrompt.trim() || DEFAULT_TRANSLATION_PROMPT);
   }
+  if (settings.targetLanguage !== undefined) store.set("targetLanguage", settings.targetLanguage);
   return { success: true };
 });
 
