@@ -8,12 +8,7 @@
   <div class="popup" role="main">
     <div class="header">
       <div class="lang-controls">
-        <label for="targetLang" class="sr-only">Target language</label>
-        <select id="targetLang" class="lang-select" aria-label="Target language">
-          <option value="en">English</option>
-          <option value="es">Spanish</option>
-          <option value="ru">Russian</option>
-        </select>
+        <span class="target-label">Korean</span>
       </div>
       <span id="modeBadge" class="mode-badge" aria-label="Translation mode"></span>
       <button id="closeBtn" class="close-btn" title="Close" aria-label="Close popup">✕</button>
@@ -32,12 +27,11 @@
     </div>
 
     <div class="footer">
+      <button id="dismissBtn" class="action-btn" aria-label="Close translation">Close</button>
       <button id="copyBtn" class="action-btn" title="Copy translation" aria-label="Copy translation">
         Copy
       </button>
-      <button id="replaceBtn" class="action-btn primary" title="Paste into source app" aria-label="Replace in app">
-        Replace
-      </button>
+
     </div>
   </div>
 

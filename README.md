@@ -1,134 +1,42 @@
-# Translator — double Cmd+C popup translator for macOS
+# CC Translate
 
-<p align="center">
-  <b>Select text anywhere. Press <code>Cmd+C</code> twice. Get an instant AI translation right at your cursor.</b>
-</p>
+Translate selected text with ChatGPT. Just copy twice.
 
-<p align="center">
-  <a href="https://github.com/golatam/sirenko-translator/releases/latest"><img src="https://img.shields.io/github/v/release/golatam/sirenko-translator?label=download" alt="Latest release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/golatam/sirenko-translator" alt="License"></a>
-  <img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-blue" alt="Platform">
-  <a href="https://github.com/golatam/sirenko-translator/stargazers"><img src="https://img.shields.io/github/stars/golatam/sirenko-translator?style=social" alt="GitHub stars"></a>
-</p>
+A small macOS menu bar app with a resizable translation popup, an editable prompt, and a simple monochrome SVG icon.
 
-<p align="center"><img src="docs/demo.gif" width="600" alt="Demo"></p>
+## Use
 
-[Русская версия](README.ru.md)
+1. Open **CC Translate** and sign in to ChatGPT, or reuse your existing Codex CLI sign-in.
+2. Allow **CC Translate** in **System Settings → Privacy & Security → Accessibility** when prompted.
+3. Select text in any app. Hold **Command** and press **C twice** within one second.
+4. Copy the translation, or close the popup with **Close**, **×**, or **Esc**.
 
-## Why
+Choose a model and edit the translation prompt in Settings. **Save** saves the prompt and closes Settings; **Reset** restores the default prompt. The current translation target is Korean.
 
-Switching to a browser tab just to translate a sentence breaks your flow. Translator lives in the menu bar and turns translation into a reflex: copy twice, read, keep working. No windows, no tabs, no app switching.
+## Build and install
 
-## Features
+Requires macOS on Apple Silicon, Node.js 20 or later, and Xcode Command Line Tools (`xcode-select --install`).
 
-- **Double `Cmd+C` trigger** — works in any app; precise with Accessibility access granted, falls back to a less exact clipboard-based heuristic without it
-- **Popup at your cursor** — appears where you're looking, follows you across Spaces and fullscreen apps
-- **Streaming output** — translation appears word by word, like in a chat
-- **Three translation backends:**
-  - **Claude API** — best quality (API key, or reuse your Claude Code sign-in)
-  - **ChatGPT** — reuse your existing ChatGPT Plus subscription via Codex CLI sign-in
-  - **Local (offline)** — OPUS-MT models on-device, free and private, no internet needed
-- **Replace in place** — one click pastes the translation back over the selected text
-- **Configurable global hotkeys** — translate the clipboard into a specific language instantly
-- **Model choice** — pick the Claude model (Haiku for speed, Sonnet for quality) in Settings
-- **Auto-update** — the app keeps itself up to date from GitHub Releases
-
-## Install
-
-1. Download the latest `Translator.app` from [Releases](https://github.com/golatam/sirenko-translator/releases/latest).
-2. Move it to `/Applications`.
-3. The app is not code-signed (no $99/year Apple certificate), so on first launch macOS will complain. Either right-click → **Open** → **Open**, or run:
-
-   ```bash
-   xattr -dr com.apple.quarantine /Applications/Translator.app
-   ```
-
-4. Launch it — a **T** icon appears in the menu bar.
-
-Or build from source — see below.
-
-## Usage
-
-1. Select text in any app.
-2. Press `Cmd+C` twice within ~1 second.
-3. A popup appears near the cursor: source language is auto-detected, translation streams in.
-4. Change the target language right in the popup — your choice is remembered.
-5. **Copy** puts the translation on the clipboard; **Replace** pastes it over the original selection.
-
-Global hotkeys translate the current clipboard into a fixed language. Defaults (change or clear them in Settings → Global Shortcuts):
-
-| Hotkey | Target |
-|---|---|
-| `Ctrl+Cmd+E` | English |
-| `Ctrl+Cmd+R` | Russian |
-| `Ctrl+Cmd+S` | Spanish |
-
-The menu-bar icon opens Settings, toggles the watcher on/off, and checks for updates.
-
-## Translation backends
-
-Pick one in **Settings → Translation Mode**.
-
-| Mode | What it uses | When to pick it |
-|---|---|---|
-| **Cloud → Claude** | Claude API with your API key from [platform.claude.com](https://platform.claude.com). If you use [Claude Code](https://claude.com/claude-code), the app can reuse its sign-in automatically. Model is selectable in Settings (Haiku 4.5 by default; Sonnet for higher quality). | Best quality. |
-| **Cloud → ChatGPT** | Your ChatGPT Plus subscription, via the [Codex CLI](https://github.com/openai/codex) sign-in (`codex login`). | You already pay for Plus and don't want a separate API key. |
-| **Local** | [OPUS-MT](https://github.com/Helsinki-NLP/Opus-MT) models via `@xenova/transformers`, running in a worker thread. One-time download of ~50 MB per language pair. | Offline, free, fully private. Slightly lower quality. |
-
-> **Note on subscription sign-in reuse.** Reusing Claude Code / Codex CLI credentials is an unofficial mechanism and is not endorsed by Anthropic or OpenAI — it may stop working at any time. The officially supported path is a Claude API key or local mode.
-
-## Privacy
-
-- In cloud mode, the text you translate is sent to Anthropic or OpenAI. Nothing else leaves your machine.
-- In local mode, nothing leaves your machine at all.
-- No analytics, no telemetry, no accounts.
-- Credentials are stored in the macOS Keychain (Claude) or read from Codex CLI's own auth file (ChatGPT); the app never sends them anywhere except the respective provider.
-
-## Build from source
-
-Requires Node.js 18+ and macOS on Apple Silicon.
-
-```bash
-git clone https://github.com/golatam/sirenko-translator.git
-cd sirenko-translator
-npm install
-npm start          # run in dev mode
+```sh
+npm ci
+npm test
+npm run dist
 ```
 
-Package a `.app`:
+Copy `dist/mac-arm64/CC Translate.app` into Applications and open it. Quit any older copy first. Builds are unsigned and not notarized; macOS may require **Open Anyway** in Privacy & Security. A renamed installation may need Accessibility access granted again.
 
-```bash
-npm run dist       # → dist/mac-arm64/Translator.app (Apple Silicon)
-npm run dist:x64   # → dist/mac/Translator.app (Intel)
-npm run deploy     # build + install into /Applications
-npm run dmg        # build a .dmg installer (add :x64 for Intel)
-npm run icon       # regenerate build/icon.icns
-```
+For development, run `npm start`. To regenerate the icon from `assets/icon.svg`, run `npm run icon`.
 
-Maintainer docs — release process, auto-update internals, and the ASAR workaround — live in [docs/RELEASING.md](docs/RELEASING.md).
+## Authentication and privacy
 
-## How it works
+CC Translate uses the ChatGPT/Codex OAuth translation path and shares `~/.codex/auth.json` with the Codex CLI. It does not request an OpenAI API key or use separately billed API requests. Access depends on your account's available models and usage limits. If your session expires, use **Reconnect** in Settings.
 
-- `main.js` — Electron main process: tray, popup and settings windows, global shortcuts.
-- `double-copy.js` — double-`Cmd+C` detection: real keydown events via `uiohook-napi`, with a clipboard-polling fallback when Accessibility access isn't granted.
-- `translate.js` — cloud backends (Claude via the official SDK, ChatGPT via SSE streaming) with OAuth token auto-refresh.
-- `translate-local.js` + `translate-local-worker.js` — offline translation in a worker thread so the UI never blocks.
-- `lang-detect.js` — supported languages and source-language auto-detection heuristics.
-- `updater.js` — self-update from GitHub Releases: lightweight JS-only patches (~KBs) or full-app swaps.
+Selected text is sent to ChatGPT when you trigger translation. The app does not retain a translation history. The shortcut helper uses macOS Accessibility to read the selection; when an app does not expose it, the helper briefly copies the selection and restores the previous clipboard. Some apps may not support selection capture.
 
-The double-`Cmd+C` detection is the fun part: with Accessibility access granted, `double-copy.js` listens for real keydown events via `uiohook-napi` (a passive, listen-only hook — it never swallows the keystroke, so `Cmd+C` still works normally everywhere) and fires on two `Cmd+C` presses within a second. Without Accessibility access, a purely clipboard-based fallback takes over: it polls `NSPasteboard.changeCount` every 150 ms and treats two bumps with matching text within a second as "translate this" — good enough, but occasionally misfires on things that write to the clipboard without an actual `Cmd+C` (e.g. a terminal with "copy on select" plus Universal Clipboard).
-
-## Limitations
-
-- macOS only (relies on `NSPasteboard`, Keychain, and AppleScript). Apple Silicon builds are provided; Intel builds can be made from source with `npm run dist:x64`.
-- Language list is currently English / Russian / Spanish — extending it is straightforward, PRs welcome.
-
-## Contributing
-
-Bug reports and PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Good first issue: adding languages.
-
-If Translator saves you time, **star the repo** ⭐ — it helps other people find it.
+Settings remain in the legacy `translator-widget` application-support folder so existing installations retain their model and prompt.
 
 ## License
 
-[MIT](LICENSE)
+MIT. Based on [sirenko-translator](https://github.com/golatam/sirenko-translator) by Kirill Sirenko. See [LICENSE](LICENSE).
+
+This is an independent project, not an official OpenAI app.

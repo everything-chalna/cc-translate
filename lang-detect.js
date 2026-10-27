@@ -7,15 +7,20 @@ const LANGUAGES = {
   en: "English",
   es: "Spanish",
   ru: "Russian",
+  ko: "Korean",
 };
 
 /**
  * Detect the most likely language of the given text.
- * Returns "ru", "es", or "en".
+ * Returns "ru", "es", "ko", or "en".
  */
 function detectLanguage(text) {
   const letters = (text.match(/\p{L}/gu) || []);
   if (letters.length === 0) return "en";
+
+  // Hangul syllables and Jamo → Korean
+  const hangulCount = (text.match(/\p{Script=Hangul}/gu) || []).length;
+  if (hangulCount / letters.length > 0.5) return "ko";
 
   // Cyrillic → Russian
   const cyrillicCount = (text.match(/[\u0400-\u04FF]/g) || []).length;
@@ -47,6 +52,7 @@ function autoTargetLang(text, defaultTarget) {
   // Source matches the user's preferred target — pick an alternative
   if (src === "ru") return "en";
   if (src === "es") return "en";
+  if (src === "ko") return "en";
   return "ru"; // English text → Russian by default
 }
 

@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("translate", text, targetLang),
 
   // Settings
+  resizeSettings: (height) => ipcRenderer.send("resize-settings", height),
+  closeSettings: () => ipcRenderer.send("close-settings"),
   getSettings: () => ipcRenderer.invoke("get-settings"),
   saveSettings: (settings) => ipcRenderer.invoke("save-settings", settings),
   getCodexStatus: () => ipcRenderer.invoke("get-codex-status"),
@@ -17,15 +19,9 @@ contextBridge.exposeInMainWorld("api", {
 
   // Popup actions
   copyToClipboard: (text) => ipcRenderer.invoke("copy-to-clipboard", text),
-  replaceInApp: (text) => ipcRenderer.invoke("replace-in-app", text),
+  resizePopup: (height) => ipcRenderer.send("resize-popup", height),
   setBusy: (busy) => ipcRenderer.send("popup-busy", busy),
   closePopup: () => ipcRenderer.send("close-popup"),
-  saveLastTargetLang: (lang) => ipcRenderer.send("save-last-target-lang", lang),
-
-  // Model management
-  downloadModels: () => ipcRenderer.invoke("download-models"),
-  onDownloadProgress: (callback) =>
-    ipcRenderer.on("download-progress", (_event, data) => callback(data)),
 
   // Events from main process
   onTranslationRequest: (callback) =>

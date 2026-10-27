@@ -1,11 +1,9 @@
-const targetLangSelect = document.getElementById("targetLang");
 const closeBtn = document.getElementById("closeBtn");
 const sourcePreview = document.getElementById("sourcePreview");
 const translationArea = document.getElementById("translationArea");
 const loading = document.getElementById("loading");
 const errorMsg = document.getElementById("errorMsg");
 const copyBtn = document.getElementById("copyBtn");
-const replaceBtn = document.getElementById("replaceBtn");
 const translateBtn = document.getElementById("translateBtn");
 
 const modeBadge = document.getElementById("modeBadge");
@@ -13,54 +11,29 @@ const modeBadge = document.getElementById("modeBadge");
 let currentSourceText = "";
 let requestId = 0; // guard against stale translation responses
 
-/**
- * Detect language in renderer (mirrors lang-detect.js logic).
- * Returns "ru", "es", or "en".
- */
-function detectLanguageLocal(text) {
-  const letters = (text.match(/\p{L}/gu) || []);
-  if (letters.length === 0) return "en";
 
-  const cyrillicCount = (text.match(/[\u0400-\u04FF]/g) || []).length;
-  if (cyrillicCount / letters.length > 0.5) return "ru";
-
-  const spanishChars = (text.match(/[ñÑáéíóúüÁÉÍÓÚÜ¿¡]/g) || []).length;
-  if (spanishChars >= 2) return "es";
-
-  const lowerText = text.toLowerCase();
-  const spanishWords =
-    /\b(el|los|las|del|por|para|con|una|uno|como|más|pero|que|esta|fue|hay|puede|todos|así|entre|cuando|muy|sin|sobre|después|tiene|desde|están|donde|antes|esos?|estas?|aunque|cada|hacia|porque|alguna?|entonces|ahora|durante|siempre|además|mejor|hacer|también|nuevo|otro)\b/g;
-  const spanishHits = (lowerText.match(spanishWords) || []).length;
-  const wordCount = text.split(/\s+/).filter(Boolean).length;
-  if (wordCount >= 3 && spanishHits / wordCount > 0.15) return "es";
-
-  return "en";
+let resizeTimer;
+function resizeToContent() {
+  if (!window.api.resizePopup) return;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    translationArea.style.height = "0px";
+    translationArea.style.height = Math.max(24, translationArea.scrollHeight) + "px";
+    const body = document.querySelector(".body");
+    const header = document.querySelector(".header");
+    const footer = document.querySelector(".footer");
+    window.api.resizePopup(body.scrollHeight + header.offsetHeight + footer.offsetHeight + 2);
+  }, 60);
 }
+translationArea.addEventListener("input", resizeToContent);
+window.addEventListener("resize", resizeToContent);
 
 // Listen for translation requests from main process
 window.api.onTranslationRequest((data) => {
   currentSourceText = data.text;
 
-  // Show mode badge
-  const mode = data.translationMode || "cloud";
-  if (mode === "local") {
-    modeBadge.textContent = "LOCAL";
-    modeBadge.className = "mode-badge local";
-  } else {
-    const provider = data.cloudProvider || "claude";
-    modeBadge.textContent = provider === "openai" ? "GPT" : "CLAUDE";
-    modeBadge.className = "mode-badge cloud";
-  }
-
-  // Auto-detect source and pick target
-  const detectedSrc = detectLanguageLocal(data.text);
-  let defaultTarget = data.targetLang;
-  // If the detected source matches the target, pick an alternative
-  if (detectedSrc === defaultTarget) {
-    defaultTarget = detectedSrc === "ru" ? "en" : "ru";
-  }
-
-  targetLangSelect.value = defaultTarget;
+  modeBadge.textContent = "ChatGPT";
+  modeBadge.className = "mode-badge cloud";
 
   sourcePreview.textContent =
     currentSourceText.length > 150
@@ -74,7 +47,9 @@ window.api.onTranslationRequest((data) => {
   translateBtn.classList.remove("hidden");
   translateBtn.textContent = "Translate ▶";
 
-  // Auto-translate: global shortcut or double-copy
+  resizeToContent();
+
+  // Translate the selection received from Command+C+C
   if (data.autoTranslate) {
     startTranslation();
   }
@@ -83,14 +58,6 @@ window.api.onTranslationRequest((data) => {
 // Manual translate button
 translateBtn.addEventListener("click", () => {
   startTranslation();
-});
-
-// Language changed — remember choice and translate immediately
-targetLangSelect.addEventListener("change", () => {
-  window.api.saveLastTargetLang(targetLangSelect.value);
-  if (currentSourceText) {
-    startTranslation();
-  }
 });
 
 // Handle streaming chunks from cloud translation
@@ -104,6 +71,7 @@ window.api.onTranslationChunk((chunk) => {
     loading.classList.add("hidden");
   }
   translationArea.value += chunk;
+  resizeToContent();
 });
 
 async function startTranslation() {
@@ -117,11 +85,12 @@ async function startTranslation() {
   errorMsg.classList.add("hidden");
   translationArea.value = "";
   window.api.setBusy(true);
+  resizeToContent();
 
   try {
     const result = await window.api.translate(
       currentSourceText,
-      targetLangSelect.value || undefined
+      "ko"
     );
 
     // Only release busy if this is still the current request
@@ -137,24 +106,22 @@ async function startTranslation() {
     if (result.error) {
       if (result.error === "cancelled") return;
       errorMsg.textContent = result.error;
+      resizeToContent();
       errorMsg.classList.remove("hidden");
       translateBtn.classList.remove("hidden");
       return;
     }
 
-    // For non-streaming (local mode), set the full result
-    // For streaming (cloud mode), text was already set via chunks —
-    // use the final trimmed result as authoritative
+    // Use the final trimmed result as authoritative.
     translationArea.value = result.translation;
+    resizeToContent();
 
-    if (result.targetLang && !targetLangSelect.value) {
-      targetLangSelect.value = result.targetLang;
-    }
   } catch (err) {
     if (id === requestId) {
       window.api.setBusy(false);
       loading.classList.add("hidden");
       errorMsg.textContent = err.message || "Translation failed";
+      resizeToContent();
       errorMsg.classList.remove("hidden");
       translateBtn.classList.remove("hidden");
     }
@@ -162,6 +129,10 @@ async function startTranslation() {
 }
 
 // Button actions
+document.getElementById("dismissBtn").addEventListener("click", () => {
+  window.api.setBusy(false);
+  window.api.closePopup();
+});
 closeBtn.addEventListener("click", () => {
   window.api.setBusy(false);
   window.api.closePopup();
@@ -182,17 +153,6 @@ copyBtn.addEventListener("click", async () => {
     }, 1500);
   } catch {
     errorMsg.textContent = "Failed to copy";
-    errorMsg.classList.remove("hidden");
-  }
-});
-
-replaceBtn.addEventListener("click", async () => {
-  const text = translationArea.value;
-  if (!text) return;
-  try {
-    await window.api.replaceInApp(text);
-  } catch {
-    errorMsg.textContent = "Failed to replace";
     errorMsg.classList.remove("hidden");
   }
 });

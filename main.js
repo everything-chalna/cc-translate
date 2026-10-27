@@ -7,18 +7,15 @@ const {
   clipboard,
   screen,
   nativeImage,
-  globalShortcut,
   dialog,
   shell,
 } = require("electron");
 const path = require("path");
-const fs = require("fs");
 const Store = require("electron-store");
-const { translate, translateOpenAI, getKeychainToken, getCodexToken, loginOpenAI, listOpenAIModels } = require("./translate");
-const { translateLocal, downloadModels, terminateWorker } = require("./translate-local");
-const { LANGUAGES } = require("./lang-detect");
-const { checkForUpdates, scheduleUpdateChecks } = require("./updater");
+const { translateOpenAI, getCodexToken, loginOpenAI, listOpenAIModels } = require("./translate");
+const { DEFAULT_TRANSLATION_PROMPT } = require("./translation-prompt");
 const doubleCopy = require("./double-copy");
+const { popupWidth, popupBounds } = require("./popup-layout");
 
 // ─── Single Instance Lock ───────────────────────────────────────────────────
 
@@ -29,32 +26,16 @@ if (!gotTheLock) {
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 
-const POPUP_DEFAULT_WIDTH = 420;
-const POPUP_DEFAULT_HEIGHT = 320;
 const POPUP_MIN_WIDTH = 320;
-const POPUP_MIN_HEIGHT = 240;
+const POPUP_MIN_HEIGHT = 100;
 
-// "Command" only exists on macOS — Electron accelerators have no Windows
-// equivalent for it, so registerGlobalShortcuts() would silently fail to
-// bind these on Windows. Use Ctrl+Alt+<key> there instead.
-const DEFAULT_SHORTCUTS = process.platform === "win32"
-  ? { en: "Ctrl+Alt+E", ru: "Ctrl+Alt+R", es: "Ctrl+Alt+S" }
-  : { en: "Ctrl+Command+E", ru: "Ctrl+Command+R", es: "Ctrl+Command+S" };
+// Preserve settings from installations made before the app was renamed.
+app.setPath("userData", path.join(app.getPath("appData"), "translator-widget"));
 
 const store = new Store({
   defaults: {
-    apiKey: "",
-    cloudProvider: "claude",
-    claudeModel: "claude-haiku-4-5",
     openaiModel: "gpt-5.6-luna",
-    defaultTargetLang: "en",
-    lastTargetLang: null,
-    enabled: true,
-    translationMode: "cloud",
-    popupWidth: POPUP_DEFAULT_WIDTH,
-    popupHeight: POPUP_DEFAULT_HEIGHT,
-    shortcuts: DEFAULT_SHORTCUTS,
-    doubleCopyKey: "C",
+    translationPrompt: DEFAULT_TRANSLATION_PROMPT,
   },
 });
 
@@ -83,25 +64,12 @@ function createTrayIcon() {
 
 function createTray() {
   tray = new Tray(createTrayIcon());
-  tray.setToolTip("Translator");
+  tray.setToolTip("CC Translate");
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: "Translator", enabled: false },
+    { label: "CC Translate", enabled: false },
     { type: "separator" },
-    {
-      label: "Enabled",
-      type: "checkbox",
-      checked: store.get("enabled"),
-      click: (item) => {
-        store.set("enabled", item.checked);
-        item.checked ? doubleCopy.start(onDoubleCopy, store.get("doubleCopyKey")) : doubleCopy.stop();
-      },
-    },
     { label: "Settings...", click: () => openSettings() },
-    {
-      label: "Check for Updates...",
-      click: () => checkForUpdates({ silent: false }).catch(() => {}),
-    },
     { type: "separator" },
     { label: "Quit", click: () => app.quit() },
   ]);
@@ -114,34 +82,22 @@ function createTray() {
 // don't bubble up as unhandled rejections from the double-copy detector and
 // silently swallow the popup trigger.
 async function resolveAuth() {
-  const mode = store.get("translationMode");
-  if (mode === "local") return { ok: true };
-
-  const provider = store.get("cloudProvider") || "claude";
   try {
-    if (provider === "openai") {
-      const token = await getCodexToken();
-      if (!token) return { ok: false };
-      return { ok: true };
-    }
-    const apiKey = store.get("apiKey");
-    if (apiKey) return { ok: true };
-    const kc = await getKeychainToken();
-    if (kc) return { ok: true };
-    return { ok: false };
+    return { ok: !!(await getCodexToken()) };
   } catch (err) {
     return { ok: false, error: err };
   }
 }
 
-async function onDoubleCopy(text, cursorPoint) {
+async function onDoubleCopy(text, cursorPoint, error) {
+  if (error) { dialog.showErrorBox("CC Translate", error); return; }
   if (!text || !text.trim()) return;
 
   const auth = await resolveAuth();
   if (!auth.ok) {
     if (auth.error) {
       dialog.showErrorBox(
-        "Translator: re-sign in required",
+        "CC Translate: re-sign in required",
         `${auth.error.message || auth.error}\n\nOpening Settings — please re-authenticate.`
       );
     }
@@ -154,11 +110,11 @@ async function onDoubleCopy(text, cursorPoint) {
 
 // ─── Popup Window ───────────────────────────────────────────────────────────
 
-let savePopupSizeTimer = null;
-
+let popupAnchor = null;
+let popupDisplay = null;
 function createPopupWindow() {
-  const w = Math.max(POPUP_MIN_WIDTH, store.get("popupWidth") || POPUP_DEFAULT_WIDTH);
-  const h = Math.max(POPUP_MIN_HEIGHT, store.get("popupHeight") || POPUP_DEFAULT_HEIGHT);
+  const w = 360;
+  const h = 150;
 
   popupWindow = new BrowserWindow({
     width: w,
@@ -167,7 +123,7 @@ function createPopupWindow() {
     minHeight: POPUP_MIN_HEIGHT,
     frame: false,
     transparent: true,
-    resizable: true,
+    resizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     show: false,
@@ -185,26 +141,13 @@ function createPopupWindow() {
 
   popupWindow.loadFile(path.join(__dirname, "renderer", "popup.html"));
 
-  popupWindow.on("blur", () => {
-    if (popupBusy) return;
-    if (popupWindow && !popupWindow.isDestroyed()) {
-      popupWindow.hide();
-    }
-  });
+  // Keep the result visible while content-driven resizing changes focus.
+  // Escape or the close button dismisses the card.
 
-  // Persist user-chosen size (debounced, ignored while window is hidden during reposition)
-  popupWindow.on("resize", () => {
-    if (!popupWindow || popupWindow.isDestroyed() || !popupWindow.isVisible()) return;
-    if (savePopupSizeTimer) clearTimeout(savePopupSizeTimer);
-    savePopupSizeTimer = setTimeout(() => {
-      const [width, height] = popupWindow.getSize();
-      store.set("popupWidth", width);
-      store.set("popupHeight", height);
-    }, 250);
-  });
 }
 
 function showPopup(text, targetLangOverride, autoTranslate, cursorPoint) {
+  popupBusy = !!autoTranslate;
   const point = cursorPoint || screen.getCursorScreenPoint();
   const display = screen.getDisplayNearestPoint(point);
   const { workArea } = display;
@@ -213,26 +156,15 @@ function showPopup(text, targetLangOverride, autoTranslate, cursorPoint) {
     createPopupWindow();
   }
 
-  const [popupWidth, popupHeight] = popupWindow.getSize();
-
-  let x = point.x - popupWidth / 2;
-  let y = point.y + 20;
-  x = Math.max(workArea.x, Math.min(x, workArea.x + workArea.width - popupWidth));
-  y = Math.max(workArea.y, Math.min(y, workArea.y + workArea.height - popupHeight));
-
-  popupWindow.setPosition(Math.round(x), Math.round(y));
+  popupAnchor = point;
+  popupDisplay = workArea;
+  popupWindow.setBounds(popupBounds(point, popupWidth(text.length, workArea), 150, workArea));
 
   const sendRequest = () => {
-    const defaultTarget =
-      targetLangOverride ||
-      store.get("lastTargetLang") ||
-      store.get("defaultTargetLang");
+    const defaultTarget = "ko";
     popupWindow.webContents.send("translation-request", {
       text,
       targetLang: defaultTarget,
-      languages: LANGUAGES,
-      translationMode: store.get("translationMode"),
-      cloudProvider: store.get("cloudProvider") || "claude",
       autoTranslate: !!targetLangOverride || !!autoTranslate,
     });
   };
@@ -259,9 +191,9 @@ function openSettings() {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 450,
-    height: 660,
-    title: "Translator Settings",
+    width: 480,
+    height: 574,
+    title: "CC Translate Settings",
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -283,27 +215,18 @@ function openSettings() {
 // ─── IPC: Translation (with cancellation + streaming) ───────────────────────
 
 ipcMain.handle("translate", async (_event, text, targetLang) => {
+  targetLang = "ko";
+
   // Cancel any in-flight cloud translation
   if (currentTranslationController) {
     currentTranslationController.abort();
     currentTranslationController = null;
   }
 
-  const mode = store.get("translationMode");
-
-  if (mode === "local") {
-    try {
-      return await translateLocal(text, targetLang);
-    } catch (err) {
-      return { error: err.message || "Local translation failed" };
-    }
-  }
-
   // Cloud mode — create AbortController for cancellation
   const controller = new AbortController();
   currentTranslationController = controller;
 
-  const provider = store.get("cloudProvider") || "claude";
 
   // Stream chunks to popup as they arrive
   const sendChunk = (chunk) => {
@@ -314,21 +237,12 @@ ipcMain.handle("translate", async (_event, text, targetLang) => {
 
   try {
     let result;
-    if (provider === "openai") {
-      const codexToken = await getCodexToken();
-      if (!codexToken) {
-        currentTranslationController = null;
-        return { error: "ChatGPT not authorized. Open Settings and click \"Sign in with ChatGPT\"." };
-      }
-      result = await translateOpenAI(text, codexToken, targetLang, controller.signal, sendChunk, store.get("openaiModel"));
-    } else {
-      const apiKey = store.get("apiKey") || (await getKeychainToken());
-      if (!apiKey) {
-        currentTranslationController = null;
-        return { error: "No Claude credentials. Paste an API key in Settings, or sign in to Claude Code." };
-      }
-      result = await translate(text, apiKey, targetLang, controller.signal, sendChunk, store.get("claudeModel"));
+    const codexToken = await getCodexToken();
+    if (!codexToken) {
+      currentTranslationController = null;
+      return { error: 'Sign in to ChatGPT in Settings.' };
     }
+    result = await translateOpenAI(text, codexToken, "ko", controller.signal, sendChunk, store.get("openaiModel"), store.get("translationPrompt"));
     currentTranslationController = null;
     return result;
   } catch (err) {
@@ -343,15 +257,9 @@ ipcMain.handle("translate", async (_event, text, targetLang) => {
 // ─── IPC: Settings ──────────────────────────────────────────────────────────
 
 ipcMain.handle("get-settings", () => ({
-  apiKey: store.get("apiKey"),
-  cloudProvider: store.get("cloudProvider"),
-  claudeModel: store.get("claudeModel"),
+  translationPrompt: store.get("translationPrompt"),
+  defaultTranslationPrompt: DEFAULT_TRANSLATION_PROMPT,
   openaiModel: store.get("openaiModel"),
-  defaultTargetLang: store.get("defaultTargetLang"),
-  enabled: store.get("enabled"),
-  translationMode: store.get("translationMode"),
-  shortcuts: { ...DEFAULT_SHORTCUTS, ...(store.get("shortcuts") || {}) },
-  doubleCopyKey: store.get("doubleCopyKey") || "C",
   accessibility: { trusted: doubleCopy.isAccessibilityTrusted(), mode: doubleCopy.getMode() },
 }));
 
@@ -360,28 +268,34 @@ ipcMain.handle("open-accessibility-settings", () => {
   return { success: true };
 });
 
+// Fit permission notices and status messages without leaving a blank footer.
+ipcMain.on("resize-settings", (event, height) => {
+  if (!settingsWindow || settingsWindow.isDestroyed() || event.sender !== settingsWindow.webContents) return;
+  if (!Number.isFinite(height)) return;
+  const bounds = settingsWindow.getBounds();
+  const area = screen.getDisplayMatching(bounds).workArea;
+  const [width, contentHeight] = settingsWindow.getContentSize();
+  const chromeHeight = bounds.height - contentHeight;
+  const nextHeight = Math.min(Math.max(100, Math.ceil(height)), area.height - chromeHeight - 24);
+  if (contentHeight !== nextHeight) settingsWindow.setContentSize(width, nextHeight);
+  const nextBounds = settingsWindow.getBounds();
+  const y = Math.max(area.y, Math.min(nextBounds.y, area.y + area.height - nextBounds.height));
+  if (y !== nextBounds.y) settingsWindow.setPosition(nextBounds.x, y);
+});
+
+ipcMain.on("close-settings", (event) => {
+  if (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents) {
+    settingsWindow.close();
+  }
+});
+
 ipcMain.handle("save-settings", (_event, settings) => {
-  if (settings.apiKey !== undefined) store.set("apiKey", settings.apiKey);
-  if (settings.cloudProvider !== undefined) store.set("cloudProvider", settings.cloudProvider);
-  if (settings.claudeModel !== undefined) store.set("claudeModel", settings.claudeModel);
   if (settings.openaiModel !== undefined) store.set("openaiModel", settings.openaiModel);
-  if (settings.defaultTargetLang !== undefined)
-    store.set("defaultTargetLang", settings.defaultTargetLang);
-  if (settings.translationMode !== undefined)
-    store.set("translationMode", settings.translationMode);
-  if (settings.enabled !== undefined) {
-    store.set("enabled", settings.enabled);
-    settings.enabled ? doubleCopy.start(onDoubleCopy, store.get("doubleCopyKey")) : doubleCopy.stop();
-  }
-  if (settings.doubleCopyKey !== undefined) {
-    store.set("doubleCopyKey", settings.doubleCopyKey);
-    doubleCopy.setKey(settings.doubleCopyKey);
-  }
-  if (settings.shortcuts !== undefined) {
-    const merged = { ...(store.get("shortcuts") || DEFAULT_SHORTCUTS), ...settings.shortcuts };
-    store.set("shortcuts", merged);
-    const failed = registerGlobalShortcuts();
-    return { success: true, failedShortcuts: failed };
+  if (settings.translationPrompt !== undefined) {
+    if (typeof settings.translationPrompt !== "string" || settings.translationPrompt.length > 20000) {
+      return { error: "Keep the translation prompt under 20,000 characters." };
+    }
+    store.set("translationPrompt", settings.translationPrompt.trim() || DEFAULT_TRANSLATION_PROMPT);
   }
   return { success: true };
 });
@@ -419,67 +333,18 @@ ipcMain.handle("openai-login", async () => {
   }
 });
 
-// ─── IPC: Model Download ────────────────────────────────────────────────────
-
-ipcMain.handle("download-models", async () => {
-  const targetLang = store.get("defaultTargetLang") || "en";
-  const sender = settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow : null;
-
-  try {
-    await downloadModels(targetLang, (data) => {
-      if (sender) {
-        sender.webContents.send("download-progress", data);
-      }
-    });
-    return { success: true };
-  } catch (err) {
-    return { error: err.message };
-  }
-});
-
 // ─── IPC: Clipboard & Popup ─────────────────────────────────────────────────
 
 ipcMain.handle("copy-to-clipboard", (_event, text) => {
-  doubleCopy.ignoreOwnWrite();
   clipboard.writeText(text);
   return { success: true };
 });
 
-ipcMain.handle("replace-in-app", async (_event, text) => {
-  doubleCopy.ignoreOwnWrite();
-  clipboard.writeText(text);
-
-  if (popupWindow && !popupWindow.isDestroyed()) {
-    popupWindow.hide();
-  }
-
-  await new Promise((r) => setTimeout(r, 300));
-
-  const { execFile } = require("child_process");
-  if (process.platform === "win32") {
-    execFile("powershell.exe", [
-      "-NoProfile",
-      "-Command",
-      "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^v')",
-    ], (err) => {
-      if (err) console.error("Failed to simulate paste:", err.message);
-    });
-  } else {
-    execFile("osascript", [
-      "-e",
-      'tell application "System Events" to keystroke "v" using command down',
-    ], (err) => {
-      if (err) console.error("Failed to simulate paste:", err.message);
-    });
-  }
-
-  return { success: true };
-});
-
-ipcMain.on("save-last-target-lang", (_event, lang) => {
-  if (typeof lang === "string" && lang) {
-    store.set("lastTargetLang", lang);
-  }
+ipcMain.on("resize-popup", (event, height) => {
+  if (!popupWindow || popupWindow.isDestroyed() || event.sender !== popupWindow.webContents) return;
+  if (!Number.isFinite(height) || !popupAnchor || !popupDisplay) return;
+  const width = popupWindow.getBounds().width;
+  popupWindow.setBounds(popupBounds(popupAnchor, width, height, popupDisplay));
 });
 
 ipcMain.on("popup-busy", (_event, busy) => {
@@ -493,85 +358,40 @@ ipcMain.on("close-popup", () => {
   }
 });
 
-// ─── Global Shortcuts ───────────────────────────────────────────────────────
-
-// globalShortcut binds to the OS-level key-down event, so holding the
-// accelerator a beat longer than a quick tap lets the OS's own key-repeat
-// fire the callback again for what the user experiences as a single press.
-// Ignore re-fires that land within this window of the last one.
-const SHORTCUT_REFIRE_GUARD_MS = 400;
-let lastShortcutFireTime = 0;
-
-// Register user-configured shortcuts from the store. Returns a map of
-// lang → false for accelerators that could not be registered (taken by
-// another app), so the settings UI can surface the conflict.
-function registerGlobalShortcuts() {
-  globalShortcut.unregisterAll();
-  const shortcuts = store.get("shortcuts") || DEFAULT_SHORTCUTS;
-  const failed = {};
-
-  for (const [lang, accelerator] of Object.entries(shortcuts)) {
-    if (!accelerator) continue; // cleared by user — shortcut disabled
-    const ok = globalShortcut.register(accelerator, () => {
-      const now = Date.now();
-      if (now - lastShortcutFireTime < SHORTCUT_REFIRE_GUARD_MS) return;
-      lastShortcutFireTime = now;
-
-      const text = clipboard.readText();
-      if (!text || !text.trim()) return;
-      showPopup(text, lang);
-    });
-    if (!ok) {
-      failed[lang] = accelerator;
-      console.error(`[shortcut] failed to register ${accelerator} — already taken`);
-    }
-  }
-  return failed;
-}
-
 // ─── App Lifecycle ──────────────────────────────────────────────────────────
 
 app.dock?.hide();
 
 app.whenReady().then(async () => {
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { label: "CC Translate", submenu: [
+      { label: "Settings…", accelerator: "Command+,", click: openSettings },
+      { type: "separator" }, { role: "quit" },
+    ] },
+    { role: "editMenu" },
+  ]));
   createTray();
   createPopupWindow();
+  openSettings();
 
-  if (store.get("enabled")) {
-    doubleCopy.start(onDoubleCopy, store.get("doubleCopyKey"));
-  }
+  doubleCopy.start(onDoubleCopy);
 
-  registerGlobalShortcuts();
-
-  if (store.get("translationMode") !== "local") {
-    const provider = store.get("cloudProvider") || "claude";
-    const needsSetup = provider === "openai"
-      ? !(await getCodexToken())
-      : !store.get("apiKey") && !(await getKeychainToken());
-    if (needsSetup) openSettings();
-  }
+  const auth = await resolveAuth();
+  if (!auth.ok) openSettings();
 
   if (
     process.platform === "darwin" &&
-    store.get("enabled") &&
     !doubleCopy.isAccessibilityTrusted()
   ) {
     openSettings();
   }
 
-  // Pre-warm: load default model pair in local mode (background, non-blocking)
-  if (store.get("translationMode") === "local") {
-    const targetLang = store.get("defaultTargetLang") || "en";
-    translateLocal("warmup", targetLang).catch(() => {});
-  }
-
-  scheduleUpdateChecks();
 });
 
+app.on("second-instance", () => { if (app.isReady()) openSettings(); });
+
 app.on("will-quit", () => {
-  globalShortcut.unregisterAll();
   doubleCopy.stop();
-  terminateWorker();
 });
 
 app.on("window-all-closed", (e) => {

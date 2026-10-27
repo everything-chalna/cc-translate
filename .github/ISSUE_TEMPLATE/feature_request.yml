@@ -6,7 +6,7 @@ body:
     id: problem
     attributes:
       label: What problem would this solve?
-      placeholder: "I often translate into German, but the app only supports en/ru/es..."
+      placeholder: "Describe the task you want to make easier."
     validations:
       required: true
   - type: textarea

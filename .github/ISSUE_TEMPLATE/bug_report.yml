@@ -14,7 +14,7 @@ body:
     id: app-version
     attributes:
       label: App version
-      placeholder: "1.0.4 (tray menu → Check for Updates shows it)"
+      placeholder: "1.0.4"
     validations:
       required: true
   - type: input
@@ -22,17 +22,6 @@ body:
     attributes:
       label: macOS version
       placeholder: "e.g. macOS 15.5, Apple Silicon"
-    validations:
-      required: true
-  - type: dropdown
-    id: mode
-    attributes:
-      label: Translation mode
-      options:
-        - Cloud → Claude (API key)
-        - Cloud → Claude (Claude Code sign-in)
-        - Cloud → ChatGPT
-        - Local (offline)
     validations:
       required: true
   - type: textarea

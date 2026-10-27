@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>CC Translate</title>
+  <rect x="104" y="104" width="816" height="816" rx="184" fill="#fff" stroke="#e8e8e8" stroke-width="2"/>
+  <g fill="none" stroke="#292929" stroke-width="72" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M344 568V360H552"/>
+    <path d="M472 664H680V456"/>
+  </g>
+</svg>

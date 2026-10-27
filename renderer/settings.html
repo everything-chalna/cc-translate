@@ -2,115 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Translator Settings</title>
+  <title>CC Translate</title>
   <link rel="stylesheet" href="settings.css">
 </head>
 <body>
-  <div class="settings" role="main">
-    <h1>Translator Settings</h1>
-
-    <div class="field">
-      <label id="engineLabel">Translation Engine</label>
-      <div class="mode-toggle" role="radiogroup" aria-labelledby="engineLabel">
-        <button type="button" id="modeLocal" class="mode-btn" role="radio" aria-checked="false">Local Model</button>
-        <button type="button" id="modeCloud" class="mode-btn" role="radio" aria-checked="false">Cloud</button>
-      </div>
-      <p class="hint" id="modeHint" aria-live="polite">OPUS-MT models running locally. First use downloads ~300 MB per language pair.</p>
-
-      <div id="modelSection" class="model-section" style="display: none;">
-        <button type="button" id="downloadBtn" class="download-btn">Download Models</button>
-        <div id="downloadStatus" class="download-status" aria-live="polite"></div>
-        <div id="progressBar" class="progress-bar" style="display: none;" role="progressbar" aria-valuemin="0" aria-valuemax="100">
-          <div id="progressFill" class="progress-fill"></div>
-        </div>
-      </div>
-    </div>
-
-    <div id="cloudProviderField" class="field">
-      <label id="providerLabel">Cloud Provider</label>
-      <div class="mode-toggle" role="radiogroup" aria-labelledby="providerLabel">
-        <button type="button" id="providerClaude" class="mode-btn" role="radio" aria-checked="false">Claude</button>
-        <button type="button" id="providerOpenAI" class="mode-btn" role="radio" aria-checked="false">ChatGPT</button>
-      </div>
-    </div>
-
-    <div class="field" id="apiKeyField">
-      <label for="apiKey">Claude API Key</label>
-      <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off">
-      <p class="hint">Your Anthropic API key. Stored locally on your machine. Leave empty to reuse a Claude Code sign-in if present.</p>
-    </div>
-
-    <div class="field" id="claudeModelField">
-      <label for="claudeModel">Claude Model</label>
-      <select id="claudeModel">
-        <option value="claude-haiku-4-5">Haiku 4.5 — fast &amp; cheap (default)</option>
-        <option value="claude-sonnet-4-6">Sonnet 4.6 — better quality</option>
-        <option value="claude-sonnet-5">Sonnet 5 — best quality</option>
-      </select>
-    </div>
-
-    <div class="field" id="openaiKeyField" style="display: none;">
-      <label>ChatGPT Authorization</label>
-      <div id="codexStatus" class="codex-status">Checking...</div>
-      <button type="button" id="openaiLoginBtn" class="download-btn">Sign in with ChatGPT</button>
-      <p class="hint">Uses your ChatGPT Plus subscription. Opens your browser to sign in.</p>
-    </div>
-
-    <div class="field" id="openaiModelField" style="display: none;">
-      <label for="openaiModel">ChatGPT Model</label>
-      <select id="openaiModel"></select>
-      <p class="hint" id="openaiModelHint">Loading available models…</p>
-    </div>
-
-    <div class="field">
-      <label for="defaultLang">Default Target Language</label>
-      <select id="defaultLang">
-        <option value="en">English</option>
-        <option value="es">Spanish</option>
-        <option value="ru">Russian</option>
-      </select>
-      <p class="hint">Default target language for translations.</p>
-    </div>
-
-    <div class="field">
-      <label class="checkbox-label">
-        <input type="checkbox" id="enabled">
-        <span>Enable clipboard watcher</span>
-      </label>
-      <p class="hint" id="doubleCopyHint">Double Cmd+C triggers translation popup.</p>
-      <p class="hint codex-status err" id="accessibilityHint" style="display: none;"></p>
-      <button type="button" id="accessibilityBtn" class="download-btn" style="display: none; margin-top: 8px;">Open Accessibility Settings…</button>
-
-      <div class="doubleCopyKeyRow" style="margin-top: 8px;">
-        <label for="doubleCopyKey" style="font-size: 12px;">Copy key</label>
-        <select id="doubleCopyKey"></select>
-      </div>
-      <p class="hint" id="doubleCopyKeyHint">Which letter counts as your system's copy shortcut. Only matters with Accessibility access granted — the fallback mode reacts to any copy, regardless of key.</p>
-    </div>
-
-    <div class="field">
-      <label>Global Shortcuts</label>
-      <p class="hint" style="margin-bottom: 8px;">Translate the clipboard into a fixed language. Click a field, then press the key combo. Backspace clears.</p>
-      <div class="shortcut-row">
-        <span class="shortcut-lang">English</span>
-        <input type="text" class="shortcut-input" id="shortcut-en" data-lang="en" readonly placeholder="click to record">
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-lang">Russian</span>
-        <input type="text" class="shortcut-input" id="shortcut-ru" data-lang="ru" readonly placeholder="click to record">
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-lang">Spanish</span>
-        <input type="text" class="shortcut-input" id="shortcut-es" data-lang="es" readonly placeholder="click to record">
-      </div>
-      <p class="hint shortcut-error" id="shortcutError" aria-live="polite"></p>
-    </div>
-
-    <div class="actions">
-      <span id="status" class="status" aria-live="polite"></span>
-    </div>
-  </div>
-
+  <main class="settings">
+    <header><div><h1>CC Translate</h1><p class="subtitle">Translate with ChatGPT</p></div><img src="../assets/icon.svg" width="48" height="48" alt=""></header>
+    <section class="shortcut"><div><h2>Translate selected text</h2><p>Hold Command. Press C twice.</p></div><div class="keys"><kbd>⌘</kbd><kbd>C</kbd><kbd>C</kbd></div></section>
+    <div class="connection"><span id="codexStatus" role="status">Connecting…</span><button type="button" id="openaiLoginBtn" class="text-button">Sign in</button></div>
+    <div id="accessibilityHint" class="permission" hidden><span>Accessibility access required.</span><button type="button" id="accessibilityBtn">Open Settings</button></div>
+    <section class="field"><label for="openaiModel">Model</label><select id="openaiModel"></select><p id="openaiModelHint" class="hint" role="status"></p></section>
+    <section class="field"><div class="label-row"><label for="translationPrompt">Translation prompt</label><button type="button" id="resetPrompt" class="text-button">Reset</button></div><textarea id="translationPrompt" rows="6" maxlength="20000" spellcheck="false"></textarea></section>
+    <footer><span id="promptStatus" role="status"></span><button type="button" id="savePrompt" class="primary">Save</button></footer>
+    <span id="status" role="status"></span>
+  </main>
   <script src="settings.js"></script>
 </body>
 </html>
