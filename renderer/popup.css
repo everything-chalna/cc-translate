@@ -1,10 +1,10 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; background: transparent; overflow: hidden; color: #242424; -webkit-app-region: no-drag; }
 .popup { display: flex; flex-direction: column; max-height: 100vh; background: #ffffff; border: 1px solid #ebebeb; border-radius: 15px; overflow: hidden; }
-.header { display: flex; align-items: center; gap: 8px; padding: 12px 16px 10px; flex-shrink: 0; -webkit-app-region: drag; }
-.close-btn { margin-left: auto; background: none; border: 0; color: #888888; font-size: 16px; cursor: pointer; line-height: 1; padding: 2px; -webkit-app-region: no-drag; }
+.header { display: flex; align-items: flex-start; gap: 12px; padding: 16px 16px 12px; flex-shrink: 0; -webkit-app-region: drag; }
+.close-btn { flex-shrink: 0; margin-left: auto; background: none; border: 0; color: #888888; font-size: 16px; cursor: pointer; line-height: 1; padding: 2px; -webkit-app-region: no-drag; }
 .body { min-height: 0; overflow-y: auto; flex: 0 1 auto; padding: 0 16px; }
-.source-preview { color: #888888; font-size: 11px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 50px; overflow: auto; margin-bottom: 12px; }
+.source-preview { color: #888888; font-size: 11px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 50px; overflow: auto; flex: 1; min-width: 0; }
 .divider { display: none; }
 .translation-area { display: block; width: 100%; min-height: 24px; height: 24px; background: none; border: 0; outline: none; resize: none; overflow: hidden; color: #242424; font: 14px/1.65 -apple-system, BlinkMacSystemFont, sans-serif; white-space: pre-wrap; overflow-wrap: anywhere; padding: 0; }
 .translation-area::placeholder { color: #aaaaaa; }

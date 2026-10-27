@@ -202,3 +202,15 @@ test('Save closes settings only after a successful save; Reset stays open', asyn
   assert.match(buildTranslationPrompt('Use a polite tone.', 'Japanese'), /Translate the given text to Japanese/);
   assert.doesNotMatch(DEFAULT_TRANSLATION_PROMPT, /Korean/);
 });
+
+ test('prompt variables resolve for each translation without changing the template', () => {
+  const { buildTranslationPrompt, DEFAULT_TRANSLATION_PROMPT } = require('../translation-prompt');
+  const template = 'Translate to {targetLanguage}. Use natural {targetLanguage}. Keep {other}.';
+  const japanese = buildTranslationPrompt(template, 'Japanese');
+  assert.match(japanese, /Translate to Japanese. Use natural Japanese. Keep \{other\}/);
+  assert.doesNotMatch(japanese, /\{targetLanguage\}/);
+  assert.match(buildTranslationPrompt(template, 'ko'), /Translate to Korean/);
+  assert.match(template, /\{targetLanguage\}/);
+  assert.match(DEFAULT_TRANSLATION_PROMPT, /\{targetLanguage\}/);
+  assert.match(buildTranslationPrompt('', 'French'), /naturally and accurately into French/);
+});

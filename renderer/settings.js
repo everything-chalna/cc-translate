@@ -9,6 +9,10 @@ const promptInput = document.getElementById("translationPrompt");
 const promptStatus = document.getElementById("promptStatus");
 const targetLanguageInput = document.getElementById("targetLanguage");
 let defaultPrompt = "";
+function updateVariableHint() {
+  document.getElementById("promptVariableHint").textContent = "{targetLanguage} → " + (targetLanguageInput.value.trim() || "Language");
+}
+
 
 function showSaved() {
   statusEl.textContent = "Saved";
@@ -22,6 +26,7 @@ async function loadSettings() {
   try {
     const settings = await window.api.getSettings();
     targetLanguageInput.value = settings.targetLanguage || "Korean";
+    updateVariableHint();
     defaultPrompt = settings.defaultTranslationPrompt;
     promptInput.value = settings.translationPrompt || defaultPrompt;
     refreshAccessibilityStatus(settings.accessibility);
@@ -37,7 +42,7 @@ async function savePrompt(value, closeAfterSave = false) {
     if (closeAfterSave) window.api.closeSettings();
   } catch (err) { promptStatus.textContent = "Could not save: " + err.message; }
 }
-targetLanguageInput.addEventListener("input", () => { promptStatus.textContent = "Unsaved changes"; });
+targetLanguageInput.addEventListener("input", () => { updateVariableHint(); promptStatus.textContent = "Unsaved changes"; });
 promptInput.addEventListener("input", () => { promptStatus.textContent = "Unsaved changes"; });
 document.getElementById("savePrompt").addEventListener("click", () => savePrompt(promptInput.value, true));
 document.getElementById("resetPrompt").addEventListener("click", () => savePrompt(defaultPrompt));

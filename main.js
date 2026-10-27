@@ -13,7 +13,7 @@ const {
 const path = require("path");
 const Store = require("electron-store");
 const { translateOpenAI, getCodexToken, loginOpenAI, listOpenAIModels } = require("./translate");
-const { DEFAULT_TRANSLATION_PROMPT, LEGACY_TRANSLATION_PROMPT, normalizeTargetLanguage } = require("./translation-prompt");
+const { DEFAULT_TRANSLATION_PROMPT, LEGACY_TRANSLATION_PROMPT, PREVIOUS_TRANSLATION_PROMPT, normalizeTargetLanguage } = require("./translation-prompt");
 const doubleCopy = require("./double-copy");
 const { popupWidth, popupBounds } = require("./popup-layout");
 
@@ -41,7 +41,7 @@ const store = new Store({
 });
 
 // Migrate only the old default; preserve custom prompts.
-if (store.get("translationPrompt") === LEGACY_TRANSLATION_PROMPT) {
+if ([LEGACY_TRANSLATION_PROMPT, PREVIOUS_TRANSLATION_PROMPT].includes(store.get("translationPrompt"))) {
   store.set("translationPrompt", DEFAULT_TRANSLATION_PROMPT);
 }
 

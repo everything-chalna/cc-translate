@@ -10,7 +10,7 @@ Translate selected text with ChatGPT. Just copy twice.
 2. Select text, hold **⌘**, and press **C twice**.
 3. **Copy** the translation or press **Esc** to close.
 
-Set **Translate to**, choose a model, and customize your prompt in Settings. Uses your ChatGPT subscription—no API key needed.
+Set **Translate to**, choose a model, and customize your prompt in Settings. Use `{targetLanguage}` in your prompt to insert the selected language. Uses your ChatGPT subscription—no API key needed.
 
 ## Install
 
