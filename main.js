@@ -15,6 +15,7 @@ const Store = require("electron-store");
 const { translateOpenAI, getCodexToken, loginOpenAI, listOpenAIModels } = require("./translate");
 const { DEFAULT_TRANSLATION_PROMPT, migrateTranslationStyle, normalizeTargetLanguage } = require("./translation-prompt");
 const doubleCopy = require("./double-copy");
+const { bindCloseShortcut } = require("./window-shortcuts");
 const { popupWidth, popupBounds, resizedPopupBounds } = require("./popup-layout");
 
 // ─── Single Instance Lock ───────────────────────────────────────────────────
@@ -143,6 +144,10 @@ function createPopupWindow() {
   // back to the Space where the window was last shown.
   popupWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
+  bindCloseShortcut(popupWindow, () => {
+    popupBusy = false;
+    popupWindow.hide();
+  });
   popupWindow.loadFile(path.join(__dirname, "renderer", "popup.html"));
 
   // Keep the result visible while content-driven resizing changes focus.
@@ -206,6 +211,7 @@ function openSettings() {
     },
   });
 
+  bindCloseShortcut(settingsWindow, () => settingsWindow.close());
   settingsWindow.loadFile(path.join(__dirname, "renderer", "settings.html"));
   settingsWindow.setMenuBarVisibility(false);
 
