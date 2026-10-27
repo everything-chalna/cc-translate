@@ -29,6 +29,7 @@ async function loadSettings() {
     updateVariableHint();
     defaultPrompt = settings.defaultTranslationPrompt;
     promptInput.value = settings.translationPrompt || defaultPrompt;
+    window.renderPromptHighlight?.();
     refreshAccessibilityStatus(settings.accessibility);
     await Promise.all([loadOpenAIModels(settings.openaiModel || ""), updateCodexStatus()]);
   } catch { statusEl.textContent = "Could not load settings."; }
@@ -38,6 +39,7 @@ async function savePrompt(value, closeAfterSave = false) {
     const result = await window.api.saveSettings({ translationPrompt: value, ...(closeAfterSave ? { targetLanguage: targetLanguageInput.value } : {}) });
     if (result.error) throw new Error(result.error);
     promptInput.value = value.trim() || defaultPrompt;
+    window.renderPromptHighlight?.();
     promptStatus.textContent = "Saved. Applies to the next translation.";
     if (closeAfterSave) window.api.closeSettings();
   } catch (err) { promptStatus.textContent = "Could not save: " + err.message; }

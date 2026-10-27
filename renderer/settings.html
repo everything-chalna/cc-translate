@@ -13,10 +13,11 @@
     <div id="accessibilityHint" class="permission" hidden><span>Accessibility access required.</span><button type="button" id="accessibilityBtn">Open Settings</button></div>
     <section class="field"><label for="targetLanguage">Translate to</label><input id="targetLanguage" type="text" maxlength="60" placeholder="Language" autocomplete="off"></section>
     <section class="field"><label for="openaiModel">Model</label><select id="openaiModel"></select><p id="openaiModelHint" class="hint" role="status"></p></section>
-    <section class="field"><div class="label-row"><label for="translationPrompt">Translation prompt</label><button type="button" id="resetPrompt" class="text-button">Reset</button></div><textarea id="translationPrompt" rows="6" maxlength="20000" spellcheck="false" aria-describedby="promptVariableHint"></textarea><p id="promptVariableHint" class="hint"><span>{targetLanguage}</span><span id="promptVariableValue"></span></p></section>
+    <section class="field"><div class="label-row"><label for="translationPrompt">Translation prompt</label><button type="button" id="resetPrompt" class="text-button">Reset</button></div><div class="prompt-editor"><div id="promptHighlight" class="prompt-highlight" aria-hidden="true"></div><textarea id="translationPrompt" rows="6" maxlength="20000" spellcheck="false" aria-describedby="promptVariableHint"></textarea></div><p id="promptVariableHint" class="hint"><span>{targetLanguage}</span><span id="promptVariableValue"></span></p></section>
     <footer><span id="promptStatus" role="status"></span><button type="button" id="savePrompt" class="primary">Save</button></footer>
     <span id="status" role="status"></span>
   </main>
+  <script src="prompt-editor.js"></script>
   <script src="settings.js"></script>
 </body>
 </html>
