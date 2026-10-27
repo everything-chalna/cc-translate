@@ -10,7 +10,7 @@ const promptStatus = document.getElementById("promptStatus");
 const targetLanguageInput = document.getElementById("targetLanguage");
 let defaultPrompt = "";
 function updateVariableHint() {
-  document.getElementById("promptVariableHint").textContent = "{targetLanguage} → " + (targetLanguageInput.value.trim() || "Language");
+  document.getElementById("promptVariableValue").textContent = " → " + (targetLanguageInput.value.trim() || "Language");
 }
 
 
