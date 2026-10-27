@@ -246,14 +246,14 @@ test('streamed popup resizing keeps its position at the bottom edge and after dr
   assert.deepEqual(resizedPopupBounds(moved, 400, secondScreen), { ...moved, height: 400 });
 });
 
-test('Ctrl+W and Command+W close the focused window, without consuming plain W', () => {
+test('Command+W closes the focused window; Control+W and plain W are untouched', () => {
   const { bindCloseShortcut } = require('../window-shortcuts');
   const webContents = new EventEmitter();
   let closed = 0, prevented = 0;
   bindCloseShortcut({ webContents }, () => closed++);
   const send = input => webContents.emit('before-input-event', { preventDefault() { prevented++; } }, {type:'keyDown', key:'w', ...input});
-  send({control:true}); send({meta:true, key:'W'});
-  assert.equal(closed, 2); assert.equal(prevented, 2);
-  for (const input of [{}, {control:true, type:'keyUp'}, {meta:true, shift:true}, {control:true, alt:true}, {meta:true, key:'q'}]) send(input);
-  assert.equal(closed, 2); assert.equal(prevented, 2);
+  send({meta:true, key:'W'});
+  assert.equal(closed, 1); assert.equal(prevented, 1);
+  for (const input of [{}, {control:true}, {meta:true, control:true}, {control:true, type:'keyUp'}, {meta:true, shift:true}, {control:true, alt:true}, {meta:true, key:'q'}]) send(input);
+  assert.equal(closed, 1); assert.equal(prevented, 1);
 });
