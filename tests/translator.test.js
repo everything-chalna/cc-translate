@@ -211,6 +211,18 @@ test('Save closes settings only after a successful save; Reset stays open', asyn
   assert.doesNotMatch(japanese, /\{targetLanguage\}/);
   assert.match(buildTranslationPrompt(template, 'ko'), /Translate to Korean/);
   assert.match(template, /\{targetLanguage\}/);
-  assert.match(DEFAULT_TRANSLATION_PROMPT, /\{targetLanguage\}/);
-  assert.match(buildTranslationPrompt('', 'French'), /naturally and accurately into French/);
+  assert.doesNotMatch(DEFAULT_TRANSLATION_PROMPT, /\{targetLanguage\}/);
+  assert.match(buildTranslationPrompt('', 'French'), /Translate the given text to French/);
+});
+
+test('style migration hides template syntax and preserves custom instructions', () => {
+  const { migrateTranslationStyle, DEFAULT_TRANSLATION_PROMPT } = require('../translation-prompt');
+  for (const language of ['Korean', 'the selected language', '{targetLanguage}']) {
+    const old = `Translate naturally and accurately into ${language}. Preserve the original meaning, tone, formatting, and line breaks. Output only the translation, without explanations or introductions.`;
+    assert.equal(migrateTranslationStyle(old), DEFAULT_TRANSLATION_PROMPT);
+  }
+  assert.equal(migrateTranslationStyle('Use formal language.'), 'Use formal language.');
+  assert.equal(migrateTranslationStyle('Use formal {targetLanguage}.'), 'Use formal the selected language.');
+  assert.doesNotMatch(read('renderer/settings.html'), /Advanced|promptHighlight|promptVariable|\{targetLanguage\}/);
+  assert.match(read('renderer/settings.html'), /Translation style/);
 });

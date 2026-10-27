@@ -13,7 +13,7 @@ const {
 const path = require("path");
 const Store = require("electron-store");
 const { translateOpenAI, getCodexToken, loginOpenAI, listOpenAIModels } = require("./translate");
-const { DEFAULT_TRANSLATION_PROMPT, LEGACY_TRANSLATION_PROMPT, PREVIOUS_TRANSLATION_PROMPT, normalizeTargetLanguage } = require("./translation-prompt");
+const { DEFAULT_TRANSLATION_PROMPT, migrateTranslationStyle, normalizeTargetLanguage } = require("./translation-prompt");
 const doubleCopy = require("./double-copy");
 const { popupWidth, popupBounds } = require("./popup-layout");
 
@@ -40,10 +40,10 @@ const store = new Store({
   },
 });
 
-// Migrate only the old default; preserve custom prompts.
-if ([LEGACY_TRANSLATION_PROMPT, PREVIOUS_TRANSLATION_PROMPT].includes(store.get("translationPrompt"))) {
-  store.set("translationPrompt", DEFAULT_TRANSLATION_PROMPT);
-}
+// Preserve custom style instructions while retiring the visible template syntax.
+const savedStyle = store.get("translationPrompt");
+const migratedStyle = migrateTranslationStyle(savedStyle);
+if (savedStyle !== migratedStyle) store.set("translationPrompt", migratedStyle);
 
 // ─── App State ──────────────────────────────────────────────────────────────
 
@@ -304,7 +304,7 @@ ipcMain.handle("save-settings", (_event, settings) => {
   if (settings.openaiModel !== undefined) store.set("openaiModel", settings.openaiModel);
   if (settings.translationPrompt !== undefined) {
     if (typeof settings.translationPrompt !== "string" || settings.translationPrompt.length > 20000) {
-      return { error: "Keep the translation prompt under 20,000 characters." };
+      return { error: "Keep the translation style under 20,000 characters." };
     }
     store.set("translationPrompt", settings.translationPrompt.trim() || DEFAULT_TRANSLATION_PROMPT);
   }

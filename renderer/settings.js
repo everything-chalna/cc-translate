@@ -9,11 +9,6 @@ const promptInput = document.getElementById("translationPrompt");
 const promptStatus = document.getElementById("promptStatus");
 const targetLanguageInput = document.getElementById("targetLanguage");
 let defaultPrompt = "";
-function updateVariableHint() {
-  document.getElementById("promptVariableValue").textContent = " → " + (targetLanguageInput.value.trim() || "Language");
-}
-
-
 function showSaved() {
   statusEl.textContent = "Saved";
   clearTimeout(showSaved._timer);
@@ -26,10 +21,8 @@ async function loadSettings() {
   try {
     const settings = await window.api.getSettings();
     targetLanguageInput.value = settings.targetLanguage || "Korean";
-    updateVariableHint();
     defaultPrompt = settings.defaultTranslationPrompt;
     promptInput.value = settings.translationPrompt || defaultPrompt;
-    window.renderPromptHighlight?.();
     refreshAccessibilityStatus(settings.accessibility);
     await Promise.all([loadOpenAIModels(settings.openaiModel || ""), updateCodexStatus()]);
   } catch { statusEl.textContent = "Could not load settings."; }
@@ -39,12 +32,11 @@ async function savePrompt(value, closeAfterSave = false) {
     const result = await window.api.saveSettings({ translationPrompt: value, ...(closeAfterSave ? { targetLanguage: targetLanguageInput.value } : {}) });
     if (result.error) throw new Error(result.error);
     promptInput.value = value.trim() || defaultPrompt;
-    window.renderPromptHighlight?.();
     promptStatus.textContent = "Saved. Applies to the next translation.";
     if (closeAfterSave) window.api.closeSettings();
   } catch (err) { promptStatus.textContent = "Could not save: " + err.message; }
 }
-targetLanguageInput.addEventListener("input", () => { updateVariableHint(); promptStatus.textContent = "Unsaved changes"; });
+targetLanguageInput.addEventListener("input", () => { promptStatus.textContent = "Unsaved changes"; });
 promptInput.addEventListener("input", () => { promptStatus.textContent = "Unsaved changes"; });
 document.getElementById("savePrompt").addEventListener("click", () => savePrompt(promptInput.value, true));
 document.getElementById("resetPrompt").addEventListener("click", () => savePrompt(defaultPrompt));

@@ -47,9 +47,3 @@ button:hover { background: #e9e9e9; }
 .primary:hover { background: #111; }
 .ok { color: #666; }
 .permission { background: #fafafa; border-color: #e8e8e8; color: #666; }
-
-.prompt-editor { position: relative; background: #f2f2f2; border-radius: 8px; }
-.prompt-highlight, #translationPrompt { font: 12px/1.6 -apple-system, sans-serif; letter-spacing: normal; tab-size: 8; white-space: pre-wrap; overflow-wrap: break-word; }
-.prompt-highlight { position: absolute; inset: 0; padding: 11px 12px; border: 1px solid transparent; overflow: hidden; pointer-events: none; color: #333; }
-#translationPrompt { position: relative; display: block; margin: 0; background: transparent; color: transparent; caret-color: #333; }
-.prompt-highlight code { font: inherit; color: #b55245; background: #e7e5e2; border-radius: 3px; box-shadow: 2px 0 #e7e5e2, -2px 0 #e7e5e2; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
